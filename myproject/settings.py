@@ -12,6 +12,15 @@ https://docs.djangoproject.com/en/3.1/ref/settings/
 
 from pathlib import Path
 import os
+import ldap
+from django_auth_ldap.config import LDAPSearch, GroupOfNamesType
+from configparser import RawConfigParser
+
+
+base_config = RawConfigParser()
+base_config.read('myproject/base_config.txt')
+
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -21,12 +30,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/3.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 't3!wbp3)jmis2y+7&ikv#v21p&5pvdfyg#-&l&9fx*1az@v@hx'
+
+SECRET_KEY = base_config.get('General', 'secret_key')
+
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['34.219.113.116','http://34.219.113.116']
+ALLOWED_HOSTS = [base_config.get('General', 'allowed_hosts')]
 
 
 # Application definition
@@ -39,6 +50,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_otp',
+    'django_otp.plugins.otp_static',
+    'django_otp.plugins.otp_totp',
+    'two_factor',
 ]
 
 MIDDLEWARE = [
@@ -47,6 +62,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django_otp.middleware.OTPMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -56,7 +72,7 @@ ROOT_URLCONF = 'myproject.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -78,8 +94,21 @@ WSGI_APPLICATION = 'myproject.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': str(BASE_DIR / 'db.sqlite3'),
     }
+    # TODO hold off on External DB for now
+
+    # 'default': {
+    #     'ENGINE': 'djongo',
+    #     'NAME': 'testDB',
+    #     'CLIENT': {
+    #         'host': 'localhost:27017',
+    #         'port': 27017,
+    #         'username': 'mark1',
+    #         'password': base_config.get('Mongo', 'mongodb_password'),
+    #         'authSource': '',
+    #     }
+    # }
 }
 
 
@@ -121,3 +150,42 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static/')
+
+TWO_FACTOR_FORCE_OTP_ADMIN = True
+# Point to two new login pages 
+LOGIN_URL = 'two_factor:login'
+
+# this one is optional
+LOGIN_REDIRECT_URL = '/'
+
+#LDAP
+AUTHENTICATION_BACKENDS = [
+    "django_auth_ldap.backend.LDAPBackend",
+    "django.contrib.auth.backends.ModelBackend",
+]
+
+AUTH_LDAP_SERVER_URI = 'ldap://localhost'
+AUTH_LDAP_BIND_DN = 'cn=admin,dc=example,dc=com'
+AUTH_LDAP_BIND_PASSWORD = base_config.get('Ldap', 'auth_ldap_bind_password')
+AUTH_LDAP_USER_SEARCH = LDAPSearch('ou=People,dc=example,dc=com', ldap.SCOPE_SUBTREE, "(uid=%(user)s)")
+
+# Ldap Group parameters
+AUTH_LDAP_GROUP_SEARCH = LDAPSearch('ou=Groups,dc=example,dc=com', ldap.SCOPE_SUBTREE,"objectClass=groupOfNames",)
+AUTH_LDAP_GROUP_TYPE = GroupOfNamesType(name_attr="cn")
+
+
+# Populate django user from LDAP directory
+AUTH_LDAP_USER_ATTR_MAP = {
+    "first_name": "givenName",
+    "last_name": "sn",
+    "uid": "uid",
+}
+
+AUTH_LDAP_USER_FLAGS_BY_GROUP = {
+    "is_Dept": "cn=DEPARTMENT,ou=Groups,dc=example,dc=com",
+}
+
+AUTH_LDAP_ALWAYS_UPDATE_USER = True
+
+AUTH_LDAP_FIND_GROUP_PERMS = True
+
