@@ -37,13 +37,16 @@ SECRET_KEY = base_config.get('General', 'secret_key')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = [base_config.get('General', 'allowed_hosts')]
+ALLOWED_HOSTS = ['how-legit.com']
+# ALLOWED_HOSTS = [base_config.get('General', 'allowed_hosts')]
 
 
 # Application definition
 
 INSTALLED_APPS = [
     'blog.apps.BlogConfig',
+    'ldap_user.apps.LdapUserConfig',
+    'users.apps.UsersConfig',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -92,10 +95,10 @@ WSGI_APPLICATION = 'myproject.wsgi.application'
 # https://docs.djangoproject.com/en/3.1/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': str(BASE_DIR / 'db.sqlite3'),
-    }
+    # 'default': {
+    #     'ENGINE': 'django.db.backends.sqlite3',
+    #     'NAME': str(BASE_DIR / 'db.sqlite3'),
+    # }
     # TODO hold off on External DB for now
 
     # 'default': {
@@ -109,6 +112,14 @@ DATABASES = {
     #         'authSource': '',
     #     }
     # }
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        'NAME': 'myproj',
+        'USER': 'myprojuser',
+        'PASSWORD': base_config.get('Mongo', 'mongodb_password'),
+        'HOST': 'localhost',
+        'PORT': '',
+    }
 }
 
 
